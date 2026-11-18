@@ -79,6 +79,7 @@ The project utilizes an automated testing suite powered by **JUnit 5 (Jupiter)**
 * **Deserialization & Sanitization (`ACN_DataDeserializerTest`):** Verifies date parsing, DTO mapping, and metric normalization.
 * **Network & Security Layer (`ACN_HttpClientTest`):** Tests authentication handling, TLS lifecycle sync, and error handling.
 * **Pipeline Integration & Period Calculation (`ACN_AppTest`):** Validates calendar month calculations and deduplication logic.
+* **Database Resilience & Retry Layer (`ACN_DAOTest`):** Verifies periodic batch flushing (`50` entities), exponential backoff recovery on `JDBCConnectionException` and MS SQL deadlocks (`LockAcquisitionException` / `Error 1205`), immediate fail-fast behavior on `ConstraintViolationException`, and retry termination when `max_timeout_ms` is exhausted.
 
 ### 2. Running the Test Suite
 
