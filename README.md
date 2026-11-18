@@ -1,4 +1,4 @@
-# ActiveClientsNumber
+# Jck_ActiveClientsNumber
 
 **Enterprise Java 17 ETL synchronization agent built on Google Guice 7, Apache HttpClient 5, and Hibernate 6+ that extracts corporate member activity metrics from REST APIs, resolves dynamic reporting windows, and persists deduplicated records into MS SQL Server for SAP BW/4HANA.**
 
@@ -6,7 +6,7 @@
 
 ## 📋 Overview & Business Purpose
 
-**ActiveClientsNumber** is an autonomous batch integration service responsible for collecting monthly and cumulative annual statistics of active corporate clients (`activeClients_Month`, `activeClients_Year`) segmented by corporate member identifiers (`memberCode`).
+**Jck_ActiveClientsNumber** is an autonomous batch integration service responsible for collecting monthly and cumulative annual statistics of active corporate clients (`activeClients_Month`, `activeClients_Year`) segmented by corporate member identifiers (`memberCode`).
 
 During each execution cycle, the agent dynamically calculates the exact start and end dates of the previous calendar month anchored to the **`Europe/Minsk`** timezone, appends `periodbegin` and `periodend` query parameters to the configured API gateway URL, sanitizes incoming JSON telemetry, deduplicates records by composite business keys (`YYYYMM` + `memberCode`), and commits transactional batches into the **`ActiveClientsNumber`** MS SQL staging table (PSA) for downstream ingestion into **SAP BW/4HANA**.
 
