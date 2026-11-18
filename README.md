@@ -22,8 +22,7 @@ During each execution cycle, the agent dynamically calculates the exact start an
 * **Multi-Schema Authentication & OAuth2 Token Caching:** Dynamically resolves `Basic`, static `Bearer Token`, `OAuth2` (`client_credentials` grant with thread-safe in-memory token caching and a 30-second expiration safety buffer), and anonymous (`none`) schemes from `properties.yaml`.
 * **Defensive JSON Deserialization & Composite-Key Deduplication:** Features a custom `ACN_DataDeserializer` that normalizes comma-separated decimals and scientific notation, rejects `NaN`/`Infinity` metrics, filters out malformed or overflowing `memberCode` values, and performs stream-based deduplication by `@Embeddable` composite key `ACN_PK` (`YYYYMM`, `memberCode`) prior to database persistence.
 * **High-Throughput Hibernate Batching & Scheduler Observability:** Executes memory-bounded transactional batch merges (`flush`/`clear` every 50 entities) in `ACN_DAO` and writes machine-readable YAML execution summaries (`datetime`, `returned_code`, `records_processed`) to `exchange/result.yaml` alongside OS exit codes (`0` / `1`).
-
----
+* **Resilient Hibernate Batching & Scheduler Observability:** Executes memory-bounded transactional batch merges (`flush`/`clear` every 50 entities) in `ACN_DAO` wrapped in an adaptive, jittered exponential backoff retry loop (`max_timeout_ms` budget) to survive transient MS SQL outages and deadlocks (`Error 1205`) without losing fetched payloads, while writing machine-readable YAML execution summaries (`datetime`, `returned_code`, `records_processed`) to `exchange/result.yaml`.
 
 ---
 
@@ -56,7 +55,8 @@ During each execution cycle, the agent dynamically calculates the exact start an
 * **`acn.model.ACN_PK`** — `@Embeddable` composite primary key (`YYYYMM` and `memberCode`) with `equals()` and `hashCode()` for deduplication.
 * **`acn.model.ACN_Entity`** — JPA entity mapped to the `ActiveClientsNumber` staging table.
 * **`acn.model.ExecutionResult`** — DTO modeling YAML execution summaries.
-* **`acn.hibernate.ACN_DAO`** — Transactional DAO managing batch `session.merge()` operations, memory flushing every 50 records, and transaction rollbacks.
+* **`acn.hibernate.ACN_DAO`** — Transactional DAO managing batch `session.merge()` operations (`flush`/`clear` every 50 records) protected by an exponential backoff retry policy with randomized jitter and a strict `max_timeout_ms` budget. Automatically classifies SQL/Hibernate exceptions to retry transient connection drops, timeouts, and MS SQL deadlocks (`Error 1205`) while failing fast on permanent constraint violations.
+
 
 ### 📊 Generated Runtime Artifacts
 
