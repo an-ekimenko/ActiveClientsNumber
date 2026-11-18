@@ -1,4 +1,4 @@
-# Jck_ActiveClientsNumber
+# ActiveClientsNumber
 
 **Enterprise Java 17 ETL synchronization agent built on Google Guice 7, Apache HttpClient 5, and Hibernate 6+ that extracts corporate member activity metrics from REST APIs, resolves dynamic reporting windows, and persists deduplicated records into MS SQL Server for SAP BW/4HANA.**
 
@@ -6,7 +6,7 @@
 
 ## 📋 Overview & Business Purpose
 
-**Jck_ActiveClientsNumber** is an autonomous batch integration service responsible for collecting monthly and cumulative annual statistics of active corporate clients (`activeClients_Month`, `activeClients_Year`) segmented by corporate member identifiers (`memberCode`).
+**ActiveClientsNumber** is an autonomous batch integration service responsible for collecting monthly and cumulative annual statistics of active corporate clients (`activeClients_Month`, `activeClients_Year`) segmented by corporate member identifiers (`memberCode`).
 
 During each execution cycle, the agent dynamically calculates the exact start and end dates of the previous calendar month anchored to the **`Europe/Minsk`** timezone, appends `periodbegin` and `periodend` query parameters to the configured API gateway URL, sanitizes incoming JSON telemetry, deduplicates records by composite business keys (`YYYYMM` + `memberCode`), and commits transactional batches into the **`ActiveClientsNumber`** MS SQL staging table (PSA) for downstream ingestion into **SAP BW/4HANA**.
 
@@ -28,7 +28,7 @@ During each execution cycle, the agent dynamically calculates the exact start an
 
 ## 🏗️ Shared Dependency & Execution Topology
 
-**Jck_ActiveClientsNumber** uses a decoupled shared-dependency topology to organize JARs and environment paths (such as `dependencies/`, `config/`, `exchange/`, and `logs/`) via centralized resolution and manifest configuration.
+**ActiveClientsNumber** uses a decoupled shared-dependency topology to organize JARs and environment paths (such as `dependencies/`, `config/`, `exchange/`, and `logs/`) via centralized resolution and manifest configuration.
 
 ---
 
@@ -109,17 +109,28 @@ Copy configuration templates from the `config/` directory:
 
 ### 2. Build the Application
 
-Compile and package the project into `target/Jck_ActiveClientsNumber.jar` via Maven:
+Run the standard Maven `package` phase to compile the application, isolate shared dependencies, and copy the executable artifact into the project root directory:
 
 ```bash
 mvn clean package
 ```
 
+During the `package` lifecycle, Maven automatically performs the following steps:
+
+1. Compiles the Java source files under JDK 17 specifications.
+2. Triggers `maven-dependency-plugin` to copy all required third-party runtime libraries into the shared `../dependencies/` folder.
+3. Packages `Jck_ActiveClientsNumber.jar` with a manifest `Class-Path` pointing to `../dependencies/` and automatically copies the compiled JAR from `target/` directly into the **application root directory** (`${project.basedir}`) via `maven-resources-plugin`.
+
 ### 3. Run the Application
 
-Launch the application using the Java CLI:
+Launch the application from the root directory using the Java CLI. Because `Jck_ActiveClientsNumber.jar` resides directly in the application root alongside `config/`, `ConfigPathResolver` and the manifest `Class-Path` resolve all configuration files and `../dependencies/` out of the box:
 
 ```bash
-java -jar /path/to/Jck_ActiveClientsNumber.jar
+# 1. Execute using the default local logs directory (./logs/)
+java -jar /path/to/Jck_ActiveClientsNumber/Jck_ActiveClientsNumber.jar
+
+# 2. Alternative: Execute with an explicit log directory override via JVM System Properties
+java -Dlog.dir=/var/log/acn_applications -jar /path/to/Jck_ActiveClientsNumber/Jck_ActiveClientsNumber.jar
 ```
+
 
