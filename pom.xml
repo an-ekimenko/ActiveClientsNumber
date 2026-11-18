@@ -1,0 +1,263 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>json_jackson</groupId>
+  <artifactId>Jck_ActiveClientsNumber</artifactId>
+  <version>0.0.1-SNAPSHOT</version>
+  <name>Jck_ActiveClientsNumber</name>
+  
+  <properties>
+        <jackson.version>2.21.0</jackson.version>
+        <lombok.version>1.18.42</lombok.version>
+        <lib.dir>dependencies</lib.dir>
+        <hibernate.version>6.4.4.Final</hibernate.version>
+        <jakarta.persistence.version>3.1.0</jakarta.persistence.version>
+        <junit.version>5.11.3</junit.version>
+  </properties>
+    
+  <dependencyManagement>
+     <dependencies>
+     <!-- Log4j BOM enforces unified versions across all logging sub-modules -->
+        <dependency>
+           <groupId>org.apache.logging.log4j</groupId>
+           <artifactId>log4j-bom</artifactId>
+           <version>3.0.0-beta2</version> 
+           <scope>import</scope>
+           <type>pom</type>
+        </dependency>
+    </dependencies>
+  </dependencyManagement>
+  
+  <dependencies>  
+        <!-- Dependency Injection Framework -->
+        <dependency>
+            <groupId>com.google.inject</groupId>
+            <artifactId>guice</artifactId>
+            <version>7.0.0</version>
+        </dependency>
+
+        <!-- ========================================== -->
+        <!-- Jackson JSON Processing                    -->
+        <!-- ========================================== -->
+        <!-- Core data-binding capabilities for JSON -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+            <version>${jackson.version}</version>
+        </dependency>
+        <!-- Support for Java 8 Date/Time API -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.datatype</groupId>
+            <artifactId>jackson-datatype-jsr310</artifactId>
+            <version>${jackson.version}</version>
+        </dependency>
+        <!-- Support for YAML data format parsing -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.dataformat</groupId>
+            <artifactId>jackson-dataformat-yaml</artifactId>
+            <version>${jackson.version}</version> 
+        </dependency>
+
+        <!-- ========================================== -->
+        <!-- Database & Hibernate ORM                   -->
+        <!-- ========================================== -->
+        <!-- Jakarta Persistence API Specifications -->
+        <dependency>
+            <groupId>jakarta.persistence</groupId>
+            <artifactId>jakarta.persistence-api</artifactId>
+            <version>${jakarta.persistence.version}</version>
+        </dependency>
+        <!-- Core Hibernate ORM engine functionality -->
+        <dependency>
+            <groupId>org.hibernate.orm</groupId>
+            <artifactId>hibernate-core</artifactId>
+            <version>${hibernate.version}</version>
+        </dependency>
+        <!-- Additional Hibernate dialects for specific database versions -->
+        <dependency>
+            <groupId>org.hibernate.orm</groupId>
+            <artifactId>hibernate-community-dialects</artifactId>
+            <version>${hibernate.version}</version>
+        </dependency>
+        <!-- Official Microsoft JDBC Driver for SQL Server -->
+        <dependency>
+            <groupId>com.microsoft.sqlserver</groupId>
+            <artifactId>mssql-jdbc</artifactId>
+            <version>13.3.1.jre11-preview</version>
+        </dependency>
+        <!-- SQL query interceptor and logger for performance analysis -->
+        <dependency>
+            <groupId>p6spy</groupId>
+            <artifactId>p6spy</artifactId>
+            <version>3.9.1</version>
+        </dependency>
+
+        <!-- ========================================== -->
+        <!-- Logging (Log4j2 + SLF4J Bridge)            -->
+        <!-- ========================================== -->
+        <!-- Log4j2 API interfaces -->
+        <dependency>
+            <groupId>org.apache.logging.log4j</groupId>
+            <artifactId>log4j-api</artifactId>
+        </dependency>
+        <!-- Log4j2 core implementation -->
+        <dependency>
+            <groupId>org.apache.logging.log4j</groupId>
+            <artifactId>log4j-core</artifactId>
+        </dependency>
+        <!-- SLF4J 2.x to Log4j2 adapter bridge -->
+        <dependency>
+            <groupId>org.apache.logging.log4j</groupId>
+            <artifactId>log4j-slf4j2-impl</artifactId>
+        </dependency>
+
+        <!-- ========================================== -->
+        <!-- Networking & Authentication                -->
+        <!-- ========================================== -->
+        <!-- Apache HTTP Client for remote API interactions -->
+        <dependency>
+            <groupId>org.apache.httpcomponents.client5</groupId>
+            <artifactId>httpclient5</artifactId>
+            <version>5.3.1</version>
+        </dependency>
+        <!-- OAuth 2.0 client library for authorization services -->
+        <dependency>
+            <groupId>org.apache.oltu.oauth2</groupId>
+            <artifactId>org.apache.oltu.oauth2.client</artifactId>
+            <version>1.0.2</version>
+        </dependency>
+
+        <!-- ========================================== -->
+        <!-- Development Tools & Custom Modules         -->
+        <!-- ========================================== -->
+        <!-- Boilerplate code generation via annotations -->
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <version>${lombok.version}</version>
+            <scope>provided</scope>
+        </dependency>
+        <!-- Custom local module for cryptographic certificate loading -->
+        <dependency>
+            <groupId>by.beloil.crypto</groupId>
+            <artifactId>crypto-cert-loader</artifactId>
+            <version>0.0.1-SNAPSHOT</version>
+        </dependency>
+
+        <!-- ========================================== -->
+        <!-- JUnit Testing                                -->
+        <!-- ========================================== -->
+        <!-- The base engine JUnit 5 (Jupiter API) -->
+    	<dependency>
+        	<groupId>org.junit.jupiter</groupId>
+       		<artifactId>junit-jupiter-api</artifactId>
+       		<version>${junit.version}</version>
+      	  	<scope>test</scope>
+    	</dependency>
+	    <!-- The module supports parameterized tests -->
+	    <dependency>
+    	    <groupId>org.junit.jupiter</groupId>
+	        <artifactId>junit-jupiter-params</artifactId>
+    	    <version>${junit.version}</version>
+        	<scope>test</scope>
+    	</dependency>
+	    <!-- The engine for running tests (Runtime Engine) -->
+    	<dependency>
+	        <groupId>org.junit.jupiter</groupId>
+        	<artifactId>junit-jupiter-engine</artifactId>
+        	<version>${junit.version}</version>
+        	<scope>test</scope>
+    	</dependency>
+    	<dependency>
+    		<groupId>org.mockito</groupId>
+    		<artifactId>mockito-junit-jupiter</artifactId>
+    		<version>5.14.2</version>
+    		<scope>test</scope>
+		</dependency>
+  </dependencies>  
+
+  <build>
+		<finalName>${project.artifactId}</finalName>
+        <plugins>
+            <!-- Project compilation and Lombok annotation processing -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.14.1</version>
+                <configuration>
+                    <release>17</release>
+                    <annotationProcessorPaths>
+                        <path>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                            <version>${lombok.version}</version>
+                        </path>                              
+                    </annotationProcessorPaths>
+                </configuration>
+            </plugin>
+
+            <!-- JAR packaging and Class-Path manifest configuration -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
+                <version>3.5.0</version>
+                <configuration>
+                    <archive>
+                        <manifest>
+                            <addDefaultImplementationEntries>true</addDefaultImplementationEntries>
+                            <mainClass>gsp.MainLauncher</mainClass>
+                            <addClasspath>true</addClasspath>
+                            <classpathPrefix>../${lib.dir}/</classpathPrefix>
+                        </manifest>
+                    </archive>
+                </configuration>
+            </plugin>
+    
+            <!-- Copies runtime dependencies to the designated external directory during package phase -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-dependency-plugin</artifactId>
+                <version>3.10.0</version>
+                <executions>
+                    <execution>
+                        <id>copy-dependencies</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>copy-dependencies</goal>
+                        </goals>
+                        <configuration>
+                            <outputDirectory>${project.basedir}/../${lib.dir}</outputDirectory>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            
+            <!-- Automatically moves the compiled JAR asset out of target/ into the project root--> 
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-resources-plugin</artifactId>
+                <version>3.3.1</version>
+                <executions>
+                    <execution>
+                        <id>copy-jar-to-root</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>copy-resources</goal>
+                        </goals>
+                        <configuration>
+                            <outputDirectory>${project.basedir}</outputDirectory>
+                            <resources>
+                                <resource>
+                                    <directory>${project.build.directory}</directory>
+                                    <includes>
+                                        <include>${project.build.finalName}.jar</include>
+                                    </includes>
+                                </resource>
+                            </resources>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+        
+ </build>
+</project>
