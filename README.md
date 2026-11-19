@@ -21,7 +21,6 @@ During each execution cycle, the agent dynamically calculates the exact start an
 * **State-Aware Lazy Client Initialization & TLS Hot-Swapping:** Defers `CloseableHttpClient` instantiation until the first outbound call. Before building the socket factory, `ACN_HttpClient::triggerCertUpdate` invokes `CertUpdater` for the target endpoint (and the OAuth2 identity provider when applicable), updating the local JVM `cacerts` truststore and hot-swapping the active `SSLContext` via `KeyStoreManager` with zero downtime.
 * **Multi-Schema Authentication & OAuth2 Token Caching:** Dynamically resolves `Basic`, static `Bearer Token`, `OAuth2` (`client_credentials` grant with thread-safe in-memory token caching and a 30-second expiration safety buffer), and anonymous (`none`) schemes from `properties.yaml`.
 * **Defensive JSON Deserialization & Composite-Key Deduplication:** Features a custom `ACN_DataDeserializer` that normalizes comma-separated decimals and scientific notation, rejects `NaN`/`Infinity` metrics, filters out malformed or overflowing `memberCode` values, and performs stream-based deduplication by `@Embeddable` composite key `ACN_PK` (`YYYYMM`, `memberCode`) prior to database persistence.
-* **High-Throughput Hibernate Batching & Scheduler Observability:** Executes memory-bounded transactional batch merges (`flush`/`clear` every 50 entities) in `ACN_DAO` and writes machine-readable YAML execution summaries (`datetime`, `returned_code`, `records_processed`) to `exchange/result.yaml` alongside OS exit codes (`0` / `1`).
 * **Resilient Hibernate Batching & Scheduler Observability:** Executes memory-bounded transactional batch merges (`flush`/`clear` every 50 entities) in `ACN_DAO` wrapped in an adaptive, jittered exponential backoff retry loop (`max_timeout_ms` budget) to survive transient MS SQL outages and deadlocks (`Error 1205`) without losing fetched payloads, while writing machine-readable YAML execution summaries (`datetime`, `returned_code`, `records_processed`) to `exchange/result.yaml`.
 
 ---
@@ -33,6 +32,45 @@ During each execution cycle, the agent dynamically calculates the exact start an
 ---
 
 ## 📂 Project Architecture & Component Breakdown
+
+### 🗂️ Repository Directory Structure
+
+```text
+shared-environment-root/
+├── dependencies/                                   <-- Shared runtime external libraries (*.jar)
+└── ActiveClientsNumber/                            <-- Application root directory
+    ├── config/                                     <-- External environment configuration
+    │   ├── hibernate.cfg.xml.dist                  <-- MS SQL & Hibernate template
+    │   └── properties.yaml.dist                    <-- API endpoints, auth & retry budget template
+    ├── exchange/                                   <-- Runtime scheduler output (result.yaml)
+    ├── logs/                                       <-- Runtime application & SQL logs (commons.log, p6spy.log)
+    ├── src/
+    │   ├── main/
+    │   │   ├── java/acn/
+    │   │   │   ├── config/                         <-- ConfigPathResolver, ACNApiConfig, YAMLConfigLoader
+    │   │   │   ├── hibernate/                      <-- ACN_DAO (batch persistence with jittered retries)
+    │   │   │   ├── jackson/                        <-- ACN_DataDeserializer (defensive JSON parser)
+    │   │   │   ├── model/                          <-- ACN, ACN_Data, ACN_Entity, ACN_PK, ExecutionResult
+    │   │   │   ├── network/                        <-- ACN_HttpClient, ExponentialBackoffRetryStrategy
+    │   │   │   ├── utils/                          <-- LogInitializer, ResultFileWriter
+    │   │   │   ├── ACNAppModule.java               <-- Google Guice 7 DI bindings & providers
+    │   │   │   ├── ACN_App.java                    <-- Core ETL orchestrator (Europe/Minsk period & deduplication)
+    │   │   │   └── MainLauncher.java               <-- CLI entry point & lifecycle manager
+    │   │   └── resources/
+    │   │       ├── Log4j2.xml                      <-- Logging & TLS trace routing
+    │   │       └── spy.properties                  <-- P6Spy SQL telemetry configuration
+    │   └── test/java/acn/
+    │       ├── hibernate/
+    │       │   └── ACN_DAOTest.java                <-- Batching, deadlock & DB retry tests
+    │       ├── jackson/
+    │       │   └── ACN_DataDeserializerTest.java   <-- Parameterized JSON edge-case tests
+    │       ├── network/
+    │       │   └── ACN_HttpClientTest.java         <-- Auth schemes, OAuth2 caching & TLS hook tests
+    │       └── ACN_AppTest.java                    <-- End-to-end pipeline & period calculation tests
+    ├── target/                                     <-- Maven build output & Surefire reports
+    ├── Jck_ActiveClientsNumber.jar                 <-- Executable JAR copied to root on 'mvn package'
+    └── pom.xml
+```
 
 ### ⚙️ Configuration, Security & Observability Utilities
 
