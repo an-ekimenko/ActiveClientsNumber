@@ -204,7 +204,7 @@
                     <archive>
                         <manifest>
                             <addDefaultImplementationEntries>true</addDefaultImplementationEntries>
-                            <mainClass>gsp.MainLauncher</mainClass>
+                            <mainClass>acn.MainLauncher</mainClass>
                             <addClasspath>true</addClasspath>
                             <classpathPrefix>../${lib.dir}/</classpathPrefix>
                         </manifest>
