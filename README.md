@@ -1,4 +1,4 @@
-# Jck_ActiveClientsNumber
+# ActiveClientsNumber
 
 **Enterprise Java 17 ETL synchronization agent built on Google Guice 7, Apache HttpClient 5, and Hibernate 6+ that extracts corporate member activity metrics from REST APIs, resolves dynamic reporting windows, and persists deduplicated records into MS SQL Server for SAP BW/4HANA.**
 
@@ -6,7 +6,7 @@
 
 ## 📋 Overview & Business Purpose
 
-**Jck_ActiveClientsNumber** is an autonomous batch integration service responsible for collecting monthly and cumulative annual statistics of active corporate clients (`activeClients_Month`, `activeClients_Year`) segmented by corporate member identifiers (`memberCode`).
+**ActiveClientsNumber** is an autonomous batch integration service responsible for collecting monthly and cumulative annual statistics of active corporate clients (`activeClients_Month`, `activeClients_Year`) segmented by corporate member identifiers (`memberCode`).
 
 During each execution cycle, the agent dynamically calculates the exact start and end dates of the previous calendar month anchored to the **`Europe/Minsk`** timezone, appends `periodbegin` and `periodend` query parameters to the configured API gateway URL, sanitizes incoming JSON telemetry, deduplicates records by composite business keys (`YYYYMM` + `memberCode`), and commits transactional batches into the **`ActiveClientsNumber`** MS SQL staging table (PSA) for downstream ingestion into **SAP BW/4HANA**.
 
@@ -21,19 +21,56 @@ During each execution cycle, the agent dynamically calculates the exact start an
 * **State-Aware Lazy Client Initialization & TLS Hot-Swapping:** Defers `CloseableHttpClient` instantiation until the first outbound call. Before building the socket factory, `ACN_HttpClient::triggerCertUpdate` invokes `CertUpdater` for the target endpoint (and the OAuth2 identity provider when applicable), updating the local JVM `cacerts` truststore and hot-swapping the active `SSLContext` via `KeyStoreManager` with zero downtime.
 * **Multi-Schema Authentication & OAuth2 Token Caching:** Dynamically resolves `Basic`, static `Bearer Token`, `OAuth2` (`client_credentials` grant with thread-safe in-memory token caching and a 30-second expiration safety buffer), and anonymous (`none`) schemes from `properties.yaml`.
 * **Defensive JSON Deserialization & Composite-Key Deduplication:** Features a custom `ACN_DataDeserializer` that normalizes comma-separated decimals and scientific notation, rejects `NaN`/`Infinity` metrics, filters out malformed or overflowing `memberCode` values, and performs stream-based deduplication by `@Embeddable` composite key `ACN_PK` (`YYYYMM`, `memberCode`) prior to database persistence.
-* **High-Throughput Hibernate Batching & Scheduler Observability:** Executes memory-bounded transactional batch merges (`flush`/`clear` every 50 entities) in `ACN_DAO` and writes machine-readable YAML execution summaries (`datetime`, `returned_code`, `records_processed`) to `exchange/result.yaml` alongside OS exit codes (`0` / `1`).
-
----
+* **Resilient Hibernate Batching & Scheduler Observability:** Executes memory-bounded transactional batch merges (`flush`/`clear` every 50 entities) in `ACN_DAO` wrapped in an adaptive, jittered exponential backoff retry loop (`max_timeout_ms` budget) to survive transient MS SQL outages and deadlocks (`Error 1205`) without losing fetched payloads, while writing machine-readable YAML execution summaries (`datetime`, `returned_code`, `records_processed`) to `exchange/result.yaml`.
 
 ---
 
 ## 🏗️ Shared Dependency & Execution Topology
 
-**Jck_ActiveClientsNumber** uses a decoupled shared-dependency topology to organize JARs and environment paths (such as `dependencies/`, `config/`, `exchange/`, and `logs/`) via centralized resolution and manifest configuration.
+**ActiveClientsNumber** uses a decoupled shared-dependency topology to organize JARs and environment paths (such as `dependencies/`, `config/`, `exchange/`, and `logs/`) via centralized resolution and manifest configuration.
 
 ---
 
 ## 📂 Project Architecture & Component Breakdown
+
+### 🗂️ Repository Directory Structure
+
+```text
+shared-environment-root/
+├── dependencies/                                   <-- Shared runtime external libraries (*.jar)
+└── ActiveClientsNumber/                            <-- Application root directory
+    ├── config/                                     <-- External environment configuration
+    │   ├── hibernate.cfg.xml.dist                  <-- MS SQL & Hibernate template
+    │   └── properties.yaml.dist                    <-- API endpoints, auth & retry budget template
+    ├── exchange/                                   <-- Runtime scheduler output (result.yaml)
+    ├── logs/                                       <-- Runtime application & SQL logs (commons.log, p6spy.log)
+    ├── src/
+    │   ├── main/
+    │   │   ├── java/acn/
+    │   │   │   ├── config/                         <-- ConfigPathResolver, ACNApiConfig, YAMLConfigLoader
+    │   │   │   ├── hibernate/                      <-- ACN_DAO (batch persistence with jittered retries)
+    │   │   │   ├── jackson/                        <-- ACN_DataDeserializer (defensive JSON parser)
+    │   │   │   ├── model/                          <-- ACN, ACN_Data, ACN_Entity, ACN_PK, ExecutionResult
+    │   │   │   ├── network/                        <-- ACN_HttpClient, ExponentialBackoffRetryStrategy
+    │   │   │   ├── utils/                          <-- LogInitializer, ResultFileWriter
+    │   │   │   ├── ACNAppModule.java               <-- Google Guice 7 DI bindings & providers
+    │   │   │   ├── ACN_App.java                    <-- Core ETL orchestrator (Europe/Minsk period & deduplication)
+    │   │   │   └── MainLauncher.java               <-- CLI entry point & lifecycle manager
+    │   │   └── resources/
+    │   │       ├── Log4j2.xml                      <-- Logging & TLS trace routing
+    │   │       └── spy.properties                  <-- P6Spy SQL telemetry configuration
+    │   └── test/java/acn/
+    │       ├── hibernate/
+    │       │   └── ACN_DAOTest.java                <-- Batching, deadlock & DB retry tests
+    │       ├── jackson/
+    │       │   └── ACN_DataDeserializerTest.java   <-- Parameterized JSON edge-case tests
+    │       ├── network/
+    │       │   └── ACN_HttpClientTest.java         <-- Auth schemes, OAuth2 caching & TLS hook tests
+    │       └── ACN_AppTest.java                    <-- End-to-end pipeline & period calculation tests
+    ├── target/                                     <-- Maven build output & Surefire reports
+    ├── Jck_ActiveClientsNumber.jar                 <-- Executable JAR copied to root on 'mvn package'
+    └── pom.xml
+```
 
 ### ⚙️ Configuration, Security & Observability Utilities
 
@@ -56,7 +93,8 @@ During each execution cycle, the agent dynamically calculates the exact start an
 * **`acn.model.ACN_PK`** — `@Embeddable` composite primary key (`YYYYMM` and `memberCode`) with `equals()` and `hashCode()` for deduplication.
 * **`acn.model.ACN_Entity`** — JPA entity mapped to the `ActiveClientsNumber` staging table.
 * **`acn.model.ExecutionResult`** — DTO modeling YAML execution summaries.
-* **`acn.hibernate.ACN_DAO`** — Transactional DAO managing batch `session.merge()` operations, memory flushing every 50 records, and transaction rollbacks.
+* **`acn.hibernate.ACN_DAO`** — Transactional DAO managing batch `session.merge()` operations (`flush`/`clear` every 50 records) protected by an exponential backoff retry policy with randomized jitter and a strict `max_timeout_ms` budget. Automatically classifies SQL/Hibernate exceptions to retry transient connection drops, timeouts, and MS SQL deadlocks (`Error 1205`) while failing fast on permanent constraint violations.
+
 
 ### 📊 Generated Runtime Artifacts
 
@@ -79,6 +117,7 @@ The project utilizes an automated testing suite powered by **JUnit 5 (Jupiter)**
 * **Deserialization & Sanitization (`ACN_DataDeserializerTest`):** Verifies date parsing, DTO mapping, and metric normalization.
 * **Network & Security Layer (`ACN_HttpClientTest`):** Tests authentication handling, TLS lifecycle sync, and error handling.
 * **Pipeline Integration & Period Calculation (`ACN_AppTest`):** Validates calendar month calculations and deduplication logic.
+* **Database Resilience & Retry Layer (`ACN_DAOTest`):** Verifies periodic batch flushing (`50` entities), exponential backoff recovery on `JDBCConnectionException` and MS SQL deadlocks (`LockAcquisitionException` / `Error 1205`), immediate fail-fast behavior on `ConstraintViolationException`, and retry termination when `max_timeout_ms` is exhausted.
 
 ### 2. Running the Test Suite
 
@@ -108,17 +147,28 @@ Copy configuration templates from the `config/` directory:
 
 ### 2. Build the Application
 
-Compile and package the project into `target/Jck_ActiveClientsNumber.jar` via Maven:
+Run the standard Maven `package` phase to compile the application, isolate shared dependencies, and copy the executable artifact into the project root directory:
 
 ```bash
 mvn clean package
 ```
 
+During the `package` lifecycle, Maven automatically performs the following steps:
+
+1. Compiles the Java source files under JDK 17 specifications.
+2. Triggers `maven-dependency-plugin` to copy all required third-party runtime libraries into the shared `../dependencies/` folder.
+3. Packages `Jck_ActiveClientsNumber.jar` with a manifest `Class-Path` pointing to `../dependencies/` and automatically copies the compiled JAR from `target/` directly into the **application root directory** (`${project.basedir}`) via `maven-resources-plugin`.
+
 ### 3. Run the Application
 
-Launch the application using the Java CLI:
+Launch the application from the root directory using the Java CLI. Because `Jck_ActiveClientsNumber.jar` resides directly in the application root alongside `config/`, `ConfigPathResolver` and the manifest `Class-Path` resolve all configuration files and `../dependencies/` out of the box:
 
 ```bash
-java -jar /path/to/Jck_ActiveClientsNumber.jar
+# 1. Execute using the default local logs directory (./logs/)
+java -jar /path/to/ActiveClientsNumber/Jck_ActiveClientsNumber.jar
+
+# 2. Alternative: Execute with an explicit log directory override via JVM System Properties
+java -Dlog.dir=/var/log/acn_applications -jar /path/to/ActiveClientsNumber/Jck_ActiveClientsNumber.jar
 ```
+
 
